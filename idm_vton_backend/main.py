@@ -6,6 +6,11 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from gradio_client import Client, handle_file
 from PIL import Image
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from chat_api import router as chat_router
 
 # The Colab tunnel URL can change whenever the notebook is restarted.  Keep the
 # current public URL as the default, while allowing deployment configuration to
@@ -17,6 +22,7 @@ CATVTON_URL = (
 )
 
 app = FastAPI(title="Virtual Try-On API", version="1.0")
+app.include_router(chat_router)
 
 _client = None
 
