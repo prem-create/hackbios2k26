@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
-
-import 'screens/tryon_screen.dart';
+import 'package:get/get.dart';
+import 'core/theme/app_theme.dart';
+import 'screens/home_page.dart';
 
 void main() {
-  runApp(const TryOnApp());
+  runApp(const DressupBuddyApp());
 }
 
-class TryOnApp extends StatelessWidget {
-  const TryOnApp({super.key});
+class DressupBuddyApp extends StatelessWidget {
+  const DressupBuddyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Virtual Try-On',
+    return GetMaterialApp(
+      title: 'Dressup Buddy - Virtual Try-On',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-      ),
-      home: const TryOnScreen(),
+      theme: AppTheme.lightTheme,
+      home: const HomePage(),
     );
   }
 }
