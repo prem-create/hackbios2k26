@@ -1,15 +1,21 @@
 """Supabase persistence and Gemini orchestration for wardrobe chat."""
 
 import json
+import logging
 import os
+import time
 from functools import lru_cache
 from typing import Any
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 from supabase import Client, create_client
+from storage3.exceptions import StorageApiError
+
+log = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -81,7 +87,7 @@ class ChatService:
         )
 
     def get_wardrobe_items(self, user_id: str) -> list[dict[str, Any]]:
-        return (
+        items = (
             self.supabase.table("wardrobe_items")
             .select("id, name, category, description, image_path, created_at")
             .eq("user_id", user_id)
@@ -90,12 +96,107 @@ class ChatService:
             .data
             or []
         )
+        for item in items:
+            item["image_url"] = self._signed_image_url(item.get("image_path"))
+        return items
 
     def create_wardrobe_item(self, item: dict[str, Any]) -> dict[str, Any]:
         return self._one(
             self.supabase.table("wardrobe_items").insert(item).execute(),
             "Could not create wardrobe item",
         )
+
+    def create_wardrobe_item_with_image(
+        self,
+        *,
+        user_id: str,
+        name: str,
+        category: str,
+        description: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+    ) -> dict[str, Any]:
+        path = f"{user_id}/{uuid4()}-{os.path.basename(filename)}"
+        try:
+            self._storage().upload(
+                path,
+                content,
+                {"content-type": content_type, "upsert": "false"},
+            )
+            item = self.create_wardrobe_item(
+                {
+                    "user_id": user_id,
+                    "name": name,
+                    "category": category,
+                    "description": description,
+                    "image_path": path,
+                }
+            )
+            item["image_url"] = self._signed_image_url(path)
+            return item
+        except Exception:
+            try:
+                self._storage().remove([path])
+            except Exception:
+                pass
+            raise
+
+    def update_wardrobe_item(
+        self, item_id: str, user_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
+        existing = self._wardrobe_item(item_id, user_id)
+        old_path = existing.get("image_path")
+        response = (
+            self.supabase.table("wardrobe_items")
+            .update(updates)
+            .eq("id", item_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        item = self._one(response, "Could not update wardrobe item")
+        if updates.get("image_path") and updates["image_path"] != old_path:
+            self._remove_image(old_path)
+        item["image_url"] = self._signed_image_url(item.get("image_path"))
+        return item
+
+    def delete_wardrobe_item(self, item_id: str, user_id: str) -> None:
+        item = self._wardrobe_item(item_id, user_id)
+        self.supabase.table("wardrobe_items").delete().eq("id", item_id).eq(
+            "user_id", user_id
+        ).execute()
+        self._remove_image(item.get("image_path"))
+
+    def _wardrobe_item(self, item_id: str, user_id: str) -> dict[str, Any]:
+        response = (
+            self.supabase.table("wardrobe_items")
+            .select("*")
+            .eq("id", item_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        return self._one(response, "Wardrobe item was not found", not_found=True)
+
+    def _storage(self):
+        bucket = (os.getenv("WARDROBE_BUCKET") or "wardrobe").strip()
+        return self.supabase.storage.from_(bucket)
+
+    def _signed_image_url(self, path: str | None) -> str | None:
+        if not path:
+            return None
+        expires_in = int(os.getenv("WARDROBE_IMAGE_URL_TTL", "3600"))
+        try:
+            result = self._storage().create_signed_url(path, expires_in)
+        except StorageApiError as error:
+            if "not_found" in str(error) or "Object not found" in str(error):
+                return None
+            raise
+        return result.get("signedURL") or result.get("signedUrl")
+
+    def _remove_image(self, path: str | None) -> None:
+        if path:
+            self._storage().remove([path])
 
     def get_suggestions(self, session_id: str, user_id: str) -> list[dict[str, Any]]:
         self.get_session(session_id, user_id)
@@ -202,18 +303,43 @@ class ChatService:
                 f"Wardrobe: {json.dumps(wardrobe, ensure_ascii=False)}",
             )
         )
-        try:
-            result = self.gemini_client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=GeminiChatResponse,
-                ),
-            )
-            return GeminiChatResponse.model_validate_json(result.text)
-        except Exception as error:
-            raise ChatServiceError(f"Gemini request failed: {error}") from error
+        models = [self.model]
+        fallback_model = (os.getenv("GEMINI_FALLBACK_MODEL") or "").strip()
+        if fallback_model and fallback_model not in models:
+            models.append(fallback_model)
+
+        errors = []
+        for model in models:
+            started_at = time.monotonic()
+            try:
+                result = self.gemini_client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=GeminiChatResponse,
+                    ),
+                )
+                log.info(
+                    "Gemini response received from %s in %.1fs: %s",
+                    model,
+                    time.monotonic() - started_at,
+                    result.text,
+                )
+                return GeminiChatResponse.model_validate_json(result.text)
+            except Exception as error:
+                log.exception(
+                    "Gemini model %s failed after %.1fs",
+                    model,
+                    time.monotonic() - started_at,
+                )
+                errors.append(f"{model}: {error}")
+                if model != models[-1]:
+                    log.warning("Gemini model %s failed; trying fallback model.", model)
+
+        raise ChatServiceError(
+            f"Gemini request failed for configured models: {'; '.join(errors)}"
+        )
 
     @staticmethod
     def _one(response: Any, message: str, *, not_found: bool = False) -> dict[str, Any]:
@@ -229,7 +355,7 @@ def get_chat_service() -> ChatService:
     supabase_url = (os.getenv("SUPABASE_URL") or "").strip()
     supabase_key = (os.getenv("SUPABASE_SECRET_KEY") or "").strip()
     gemini_key = (os.getenv("GEMINI_API_KEY") or "").strip()
-    model = (os.getenv("GEMINI_MODEL") or "gemini-2.5-flash").strip()
+    model = (os.getenv("GEMINI_MODEL") or "gemini-3.8-flash").strip()
     if not supabase_url or not supabase_key:
         raise ChatServiceError(
             "SUPABASE_URL and SUPABASE_SECRET_KEY must be configured"

@@ -14,7 +14,8 @@ class WardrobeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final WardrobeController wardrobeController = Get.find<WardrobeController>();
+    final WardrobeController wardrobeController =
+        Get.find<WardrobeController>();
     final TryOnController tryOnController = Get.put(TryOnController());
 
     return Scaffold(
@@ -42,12 +43,14 @@ class WardrobeView extends StatelessWidget {
                 // Custom App Bar with Back Option & Menu Button
                 CustomAppBar(
                   title: 'Wardrobe',
-                  showBackButton: true,
                   actionWidget: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.coral,
                       foregroundColor: AppColors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -61,7 +64,10 @@ class WardrobeView extends StatelessWidget {
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text(
                       'New collection',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -69,6 +75,13 @@ class WardrobeView extends StatelessWidget {
                 // Clothes List
                 Expanded(
                   child: Obx(() {
+                    if (wardrobeController.isLoading.value) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.coral,
+                        ),
+                      );
+                    }
                     if (wardrobeController.clothes.isEmpty) {
                       return const Center(
                         child: Padding(
@@ -95,7 +108,12 @@ class WardrobeView extends StatelessWidget {
                         final item = wardrobeController.clothes[index];
                         return GarmentCard(
                           item: item,
-                          onRemove: () => wardrobeController.removeGarment(item.id),
+                          onRemove: () => _confirmRemove(
+                            context,
+                            wardrobeController,
+                            item.id,
+                            item.name,
+                          ),
                           onTryOn: () {
                             tryOnController.selectGarment(item);
                             Get.to(() => const ChoosePhotoView());
@@ -111,5 +129,33 @@ class WardrobeView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmRemove(
+    BuildContext context,
+    WardrobeController controller,
+    String itemId,
+    String itemName,
+  ) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove wardrobe item?'),
+        content: Text('Remove "$itemName" from your wardrobe?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (shouldRemove == true) {
+      await controller.removeGarment(itemId);
+    }
   }
 }

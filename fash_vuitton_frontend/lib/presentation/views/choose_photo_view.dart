@@ -56,7 +56,10 @@ class ChoosePhotoView extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: AppColors.navy,
+                          ),
                           onPressed: () => Get.back(),
                         ),
                       ),
@@ -95,10 +98,16 @@ class ChoosePhotoView extends StatelessWidget {
                               ),
                             ),
                             onPressed: () => tryOnController.pickCustomPhoto(),
-                            icon: const Icon(Icons.camera_alt_rounded, size: 20),
+                            icon: const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 20,
+                            ),
                             label: const Text(
                               '📷 Click a new photo',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),
@@ -116,32 +125,40 @@ class ChoosePhotoView extends StatelessWidget {
 
                         // 3x2 Grid of Sample Models
                         Expanded(
-                          child: GridView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              childAspectRatio: 0.75,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                            itemCount: photoBgs.length,
-                            itemBuilder: (context, index) {
-                              return Obx(() {
+                          child: Obx(
+                            () => GridView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                  ),
+                              itemCount: tryOnController.savedPhotos.length,
+                              itemBuilder: (context, index) {
                                 final isSelected =
-                                    tryOnController.selectedPhotoIndex.value == index;
+                                    tryOnController.selectedPhotoIndex.value ==
+                                    index;
 
                                 return GestureDetector(
-                                  onTap: () => tryOnController.selectPhotoIndex(index),
+                                  onTap: () =>
+                                      tryOnController.selectPhotoIndex(index),
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: photoBgs[index],
+                                      color: photoBgs[index % photoBgs.length],
                                       borderRadius: BorderRadius.circular(24),
                                       border: isSelected
-                                          ? Border.all(color: AppColors.navy, width: 3.5)
+                                          ? Border.all(
+                                              color: AppColors.navy,
+                                              width: 3.5,
+                                            )
                                           : null,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppColors.navy.withOpacity(0.15),
+                                          color: AppColors.navy.withOpacity(
+                                            0.15,
+                                          ),
                                           blurRadius: 8,
                                         ),
                                       ],
@@ -149,7 +166,29 @@ class ChoosePhotoView extends StatelessWidget {
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-                                        const JacketIllustration(size: 80),
+                                        if (tryOnController
+                                            .savedPhotos[index]
+                                            .imageUrl
+                                            .isNotEmpty)
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
+                                            child: Image.network(
+                                              tryOnController
+                                                  .savedPhotos[index]
+                                                  .imageUrl,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                              errorBuilder: (_, error, stack) =>
+                                                  const JacketIllustration(
+                                                    size: 80,
+                                                  ),
+                                            ),
+                                          )
+                                        else
+                                          const JacketIllustration(size: 80),
                                         if (isSelected)
                                           Positioned(
                                             top: 8,
@@ -172,14 +211,17 @@ class ChoosePhotoView extends StatelessWidget {
                                     ),
                                   ),
                                 );
-                              });
-                            },
+                              },
+                            ),
                           ),
                         ),
 
                         // Bottom Generate Action Button
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 20.0, top: 10.0),
+                          padding: const EdgeInsets.only(
+                            bottom: 20.0,
+                            top: 10.0,
+                          ),
                           child: Obx(() {
                             final canGen = tryOnController.canGenerate;
                             return SizedBox(
@@ -188,7 +230,8 @@ class ChoosePhotoView extends StatelessWidget {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.coral,
-                                  disabledBackgroundColor: AppColors.coral.withOpacity(0.4),
+                                  disabledBackgroundColor: AppColors.coral
+                                      .withOpacity(0.4),
                                   foregroundColor: AppColors.white,
                                   elevation: canGen ? 4 : 0,
                                   shape: RoundedRectangleBorder(

@@ -47,7 +47,21 @@ class GarmentCard extends StatelessWidget {
                     ),
                   ),
                   child: Center(
-                    child: item.imageBytes != null
+                    child: item.imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: const BorderRadius.horizontal(
+                              left: Radius.circular(32),
+                            ),
+                            child: Image.network(
+                              item.imageUrl!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  const JacketIllustration(size: 130),
+                            ),
+                          )
+                        : item.imageBytes != null
                         ? ClipRRect(
                             borderRadius: const BorderRadius.horizontal(
                               left: Radius.circular(32),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lottie/lottie.dart';
 import '../core/theme/app_colors.dart';
 import '../controllers/wardrobe_controller.dart';
 import '../data/models/picked_image.dart';
@@ -19,13 +20,14 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
   final ImageService _imageService = ImageService();
 
   PickedImage? _pickedGarmentImage;
+  bool _isSubmitting = false;
   String _selectedType = 'hood'; // 'hood', 'jack', 'pant'
   int _selectedColorIndex = 0;
 
   final List<Map<String, String>> _types = [
-    {'id': 'hood', 'name': 'Hoodie'},
-    {'id': 'jack', 'name': 'Jacket'},
-    {'id': 'pant', 'name': 'Trousers'},
+    {'id': 'upper', 'name': 'Upper'},
+    {'id': 'lower', 'name': 'Lower'},
+    {'id': 'overall', 'name': 'Overall'},
   ];
 
   final List<Map<String, dynamic>> _colors = [
@@ -50,17 +52,21 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
     }
   }
 
-  void _handleAdd() {
-    final colorObj = _colors[_selectedColorIndex];
-    _wardrobeController.addGarment(
-      name: _nameController.text,
-      type: _selectedType,
-      color: colorObj['color'] as Color,
-      colorName: colorObj['name'] as String,
-      imageBytes: _pickedGarmentImage?.bytes,
-      imagePath: _pickedGarmentImage?.path,
-    );
-    Get.back();
+  Future<void> _handleAdd() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await _wardrobeController.addGarment(
+        name: _nameController.text,
+        type: _selectedType,
+        imagePath: _pickedGarmentImage?.path,
+      );
+      if (mounted) Get.back();
+    } catch (_) {
+      // The controller displays the backend error and keeps the sheet open.
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -114,8 +120,14 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
                           fit: StackFit.expand,
                           children: [
                             _pickedGarmentImage!.bytes != null
-                                ? Image.memory(_pickedGarmentImage!.bytes!, fit: BoxFit.cover)
-                                : Image.asset(_pickedGarmentImage!.path, fit: BoxFit.cover),
+                                ? Image.memory(
+                                    _pickedGarmentImage!.bytes!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.asset(
+                                    _pickedGarmentImage!.path,
+                                    fit: BoxFit.cover,
+                                  ),
                             Positioned(
                               top: 8,
                               right: 8,
@@ -125,7 +137,11 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
                                   color: AppColors.navy,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.check, color: AppColors.white, size: 16),
+                                child: const Icon(
+                                  Icons.check,
+                                  color: AppColors.white,
+                                  size: 16,
+                                ),
                               ),
                             ),
                           ],
@@ -134,7 +150,11 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-                          Icon(Icons.add_a_photo_rounded, color: AppColors.coral, size: 36),
+                          Icon(
+                            Icons.add_a_photo_rounded,
+                            color: AppColors.coral,
+                            size: 36,
+                          ),
                           SizedBox(height: 8),
                           Text(
                             '📷 Upload Actual Cloth Photo',
@@ -175,14 +195,23 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
                 ),
                 filled: true,
                 fillColor: AppColors.cream,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: AppColors.yellow, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.yellow,
+                    width: 2,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: AppColors.yellow, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.yellow,
+                    width: 2,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -257,7 +286,11 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
                           : null,
                     ),
                     child: isSelected
-                        ? const Icon(Icons.check, color: AppColors.white, size: 18)
+                        ? const Icon(
+                            Icons.check,
+                            color: AppColors.white,
+                            size: 18,
+                          )
                         : null,
                   ),
                 );
@@ -277,14 +310,20 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                onPressed: _handleAdd,
-                child: const Text(
-                  'Add to wardrobe',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                onPressed: _isSubmitting ? null : _handleAdd,
+                child: _isSubmitting
+                    ? Lottie.asset(
+                        'assets/animation/loadingscreen.json',
+                        width: 34,
+                        height: 34,
+                      )
+                    : const Text(
+                        'Add to wardrobe',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -296,5 +335,5 @@ class _NewCollectionSheetState extends State<NewCollectionSheet> {
 
 class BoxHeightConstraint extends BoxConstraints {
   const BoxHeightConstraint({required double maxHeight})
-      : super(maxHeight: maxHeight);
+    : super(maxHeight: maxHeight);
 }

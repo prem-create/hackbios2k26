@@ -2,9 +2,10 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field
+from storage3.exceptions import StorageApiError
 
 from chat_service import ChatNotFoundError, ChatServiceError, get_chat_service
 
@@ -24,6 +25,13 @@ class WardrobeItemRequest(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     category: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1, max_length=2000)
+    image_path: str | None = Field(default=None, max_length=1000)
+
+
+class WardrobeItemUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    category: str | None = Field(default=None, min_length=1, max_length=80)
+    description: str | None = Field(default=None, min_length=1, max_length=2000)
     image_path: str | None = Field(default=None, max_length=1000)
 
 
@@ -54,6 +62,16 @@ def call_service(operation):
         raise HTTPException(
             status_code=502,
             detail="Supabase request failed. Run supabase_schema.sql and verify the server key.",
+        ) from error
+    except StorageApiError as error:
+        detail = str(error)
+        if "Bucket not found" in detail:
+            raise HTTPException(
+                status_code=503,
+                detail="Supabase Storage bucket 'wardrobe' does not exist. Create it as a private bucket in Dashboard > Storage.",
+            ) from error
+        raise HTTPException(
+            status_code=502, detail="Supabase Storage request failed."
         ) from error
 
 
@@ -115,6 +133,79 @@ def get_suggestions(
 @router.post("/wardrobe/items", status_code=status.HTTP_201_CREATED)
 def create_wardrobe_item(payload: WardrobeItemRequest):
     return call_service(lambda: service().create_wardrobe_item(payload.model_dump()))
+
+
+@router.post("/wardrobe/items/upload", status_code=status.HTTP_201_CREATED)
+def upload_wardrobe_item(
+    user_id: str = Form(..., min_length=1, max_length=128),
+    name: str = Form(..., min_length=1, max_length=160),
+    category: str = Form(..., min_length=1, max_length=80),
+    description: str = Form(..., min_length=1, max_length=2000),
+    image: UploadFile = File(...),
+):
+    allowed_content_types = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+    }
+    extension_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    content_type = image.content_type or ""
+    extension_type = extension_types.get(
+        "." + (image.filename or "").rsplit(".", 1)[-1].lower()
+    )
+    if content_type not in allowed_content_types and extension_type is None:
+        raise HTTPException(
+            status_code=415,
+            detail="Only JPG, JPEG, PNG, and WebP wardrobe images are supported.",
+        )
+    content = image.file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413, detail="Wardrobe images must be 10 MB or smaller."
+        )
+    return call_service(
+        lambda: service().create_wardrobe_item_with_image(
+            user_id=user_id,
+            name=name,
+            category=category,
+            description=description,
+            filename=image.filename or "wardrobe-image",
+            content_type=(
+                content_type
+                if content_type in allowed_content_types
+                else extension_type
+            ),
+            content=content,
+        )
+    )
+
+
+@router.patch("/wardrobe/items/{item_id}")
+def update_wardrobe_item(
+    item_id: UUID,
+    payload: WardrobeItemUpdateRequest,
+    user_id: str = Query(min_length=1, max_length=128),
+):
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=422, detail="At least one field is required.")
+    return call_service(
+        lambda: service().update_wardrobe_item(str(item_id), user_id, updates)
+    )
+
+
+@router.delete("/wardrobe/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_wardrobe_item(
+    item_id: UUID, user_id: str = Query(min_length=1, max_length=128)
+):
+    call_service(lambda: service().delete_wardrobe_item(str(item_id), user_id))
+    return None
 
 
 @router.get("/wardrobe/items")

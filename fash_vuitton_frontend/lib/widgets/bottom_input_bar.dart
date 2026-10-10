@@ -6,6 +6,7 @@ class BottomInputBar extends StatelessWidget {
   final String hintText;
   final VoidCallback? onSend;
   final ValueChanged<String>? onSubmitted;
+  final bool enabled;
 
   const BottomInputBar({
     super.key,
@@ -13,6 +14,7 @@ class BottomInputBar extends StatelessWidget {
     this.hintText = 'Type your thought...',
     this.onSend,
     this.onSubmitted,
+    this.enabled = true,
   });
 
   @override
@@ -39,7 +41,8 @@ class BottomInputBar extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
-                onSubmitted: onSubmitted,
+                enabled: enabled,
+                onSubmitted: enabled ? onSubmitted : null,
                 style: const TextStyle(
                   color: AppColors.navy,
                   fontSize: 15,
@@ -59,12 +62,12 @@ class BottomInputBar extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: onSend,
+              onTap: enabled ? onSend : null,
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.coral,
+                decoration: BoxDecoration(
+                  color: enabled ? AppColors.coral : AppColors.grey,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
