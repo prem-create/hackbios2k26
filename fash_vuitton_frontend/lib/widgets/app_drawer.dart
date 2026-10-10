@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/theme/app_colors.dart';
-import '../presentation/views/home_view.dart';
-import '../presentation/views/wardrobe_view.dart';
-import '../presentation/views/favourite_view.dart';
+import '../controllers/navigation_controller.dart';
 
 class AppDrawer extends StatelessWidget {
   final String selectedItem;
 
-  const AppDrawer({
-    super.key,
-    this.selectedItem = 'Dressup Buddy',
-  });
+  const AppDrawer({super.key, this.selectedItem = 'Dressup Buddy'});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +46,10 @@ class AppDrawer extends StatelessWidget {
           // Drawer Body Content
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 32.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -75,10 +73,8 @@ class AppDrawer extends StatelessWidget {
                     title: 'Wardrobe',
                     isSelected: selectedItem == 'Wardrobe',
                     onTap: () {
-                      Get.back(); // close drawer
-                      if (selectedItem != 'Wardrobe') {
-                        Get.to(() => const WardrobeView());
-                      }
+                      Get.back();
+                      Get.find<NavigationController>().selectIndex(1);
                     },
                   ),
 
@@ -87,10 +83,17 @@ class AppDrawer extends StatelessWidget {
                     title: 'Favourite',
                     isSelected: selectedItem == 'Favourite',
                     onTap: () {
-                      Get.back(); // close drawer
-                      if (selectedItem != 'Favourite') {
-                        Get.to(() => const FavouriteView());
-                      }
+                      Get.back();
+                      Get.find<NavigationController>().selectIndex(2);
+                    },
+                  ),
+
+                  _DrawerItem(
+                    title: 'Previously tried on images',
+                    isSelected: selectedItem == 'Previously tried on images',
+                    onTap: () {
+                      Get.back();
+                      Get.find<NavigationController>().selectIndex(3);
                     },
                   ),
 
@@ -99,10 +102,8 @@ class AppDrawer extends StatelessWidget {
                     title: 'Dressup Buddy',
                     isSelected: selectedItem == 'Dressup Buddy',
                     onTap: () {
-                      Get.back(); // close drawer
-                      if (selectedItem != 'Dressup Buddy') {
-                        Get.offAll(() => const HomeView());
-                      }
+                      Get.back();
+                      Get.find<NavigationController>().selectIndex(0);
                     },
                   ),
                 ],

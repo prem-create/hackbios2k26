@@ -38,10 +38,9 @@ class FavouriteView extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                // App bar with back option
+                // Shared drawer app bar
                 const CustomAppBar(
                   title: 'Favourite',
-                  showBackButton: true,
                 ),
 
                 // Favourites List

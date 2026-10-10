@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
 import '../../core/theme/app_colors.dart';
 import '../../controllers/tryon_controller.dart';
 import '../../controllers/wardrobe_controller.dart';
@@ -12,7 +11,8 @@ class ResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TryOnController tryOnController = Get.find<TryOnController>();
-    final WardrobeController wardrobeController = Get.find<WardrobeController>();
+    final WardrobeController wardrobeController =
+        Get.find<WardrobeController>();
 
     final garment = tryOnController.selectedGarment.value;
     final garmentName = garment?.name ?? 'Try-On Look';
@@ -79,7 +79,10 @@ class ResultView extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: AppColors.navy,
+                          ),
                           onPressed: () => Get.back(),
                         ),
                       ),
@@ -118,6 +121,40 @@ class ResultView extends StatelessWidget {
                             ),
                           );
                         }
+                        if (tryOnController.isGenerating.value) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 180,
+                                height: 180,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 12,
+                                  color: AppColors.coral,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                'Generating your look...',
+                                style: const TextStyle(
+                                  color: AppColors.navy,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Generating your look. You can explore the app '
+                                'while it finishes.',
+                                style: const TextStyle(
+                                  color: AppColors.navy,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
                         return const JacketIllustration(size: 260);
                       }),
 
@@ -126,7 +163,10 @@ class ResultView extends StatelessWidget {
                         left: 20,
                         top: 10,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.white,
                             borderRadius: BorderRadius.circular(20),
@@ -153,7 +193,10 @@ class ResultView extends StatelessWidget {
                         right: 20,
                         bottom: 40,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.white,
                             borderRadius: BorderRadius.circular(20),
@@ -184,7 +227,9 @@ class ResultView extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   decoration: const BoxDecoration(
                     color: AppColors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(36),
+                    ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -234,29 +279,37 @@ class ResultView extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 14),
-                          Obx(() {
-                            final isFav = garment?.isFavourite ?? false;
-                            return GestureDetector(
-                              onTap: () {
-                                if (garment != null) {
-                                  wardrobeController.toggleFavourite(garment);
-                                }
-                              },
-                              child: Container(
-                                width: 54,
-                                height: 54,
-                                decoration: BoxDecoration(
-                                  color: isFav ? AppColors.coral : AppColors.cream,
-                                  shape: BoxShape.circle,
+                          GetBuilder<WardrobeController>(
+                            builder: (_) {
+                              final isFav = garment?.isFavourite ?? false;
+                              return GestureDetector(
+                                onTap: () {
+                                  if (garment != null) {
+                                    wardrobeController.toggleFavourite(garment);
+                                  }
+                                },
+                                child: Container(
+                                  width: 54,
+                                  height: 54,
+                                  decoration: BoxDecoration(
+                                    color: isFav
+                                        ? AppColors.coral
+                                        : AppColors.cream,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isFav
+                                        ? Icons.favorite_rounded
+                                        : Icons.favorite_border_rounded,
+                                    color: isFav
+                                        ? AppColors.white
+                                        : AppColors.coral,
+                                    size: 26,
+                                  ),
                                 ),
-                                child: Icon(
-                                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                  color: isFav ? AppColors.white : AppColors.coral,
-                                  size: 26,
-                                ),
-                              ),
-                            );
-                          }),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ],
@@ -265,46 +318,6 @@ class ResultView extends StatelessWidget {
               ],
             ),
           ),
-
-          // Full-Screen Lottie Animated Loading Overlay
-          Obx(() {
-            if (!tryOnController.isGenerating.value) {
-              return const SizedBox.shrink();
-            }
-            return Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: AppColors.blue.withOpacity(0.96),
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      'assets/animation/loadingscreen.json',
-                      width: 240,
-                      height: 240,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const CircularProgressIndicator(color: AppColors.white);
-                      },
-                    ),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'Generating your AI look…\nStay tuned!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
         ],
       ),
     );

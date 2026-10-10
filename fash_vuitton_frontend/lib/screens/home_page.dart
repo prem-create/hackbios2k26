@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/theme/app_colors.dart';
 import '../widgets/jacket_illustration.dart';
-import '../presentation/views/home_view.dart';
+import 'app_shell.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -107,7 +107,7 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                           onPressed: () {
-                            Get.offAll(() => const HomeView());
+                            Get.offAll(() => const AppShell());
                           },
                           icon: const Icon(Icons.auto_awesome, color: AppColors.white, size: 22),
                           label: const Text(

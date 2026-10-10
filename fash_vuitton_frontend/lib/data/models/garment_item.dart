@@ -10,6 +10,7 @@ class GarmentItem {
   final Color bgColor;
   final Uint8List? imageBytes;
   final String? imagePath;
+  final String? imageUrl;
   bool isFavourite;
 
   GarmentItem({
@@ -21,6 +22,7 @@ class GarmentItem {
     required this.bgColor,
     this.imageBytes,
     this.imagePath,
+    this.imageUrl,
     this.isFavourite = false,
   });
 }
